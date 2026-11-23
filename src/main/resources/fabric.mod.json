@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "spicyoreminer",
-  "version": "${version}",
+  "version": "1.0.0",
   "name": "Spicy Ore Miner",
-  "description": "Hệ thống quản lý, giám sát Ore Sim và hỗ trợ sinh tồn tiếng Việt cho Fabric.",
+  "description": "Modular ore scanner and auto-miner utility for Minecraft Fabric 1.21.11.",
   "authors": [
-    "SpicyDev"
+    "Spicy"
   ],
   "contact": {},
   "license": "MIT",
@@ -17,7 +17,7 @@
   },
   "depends": {
     "fabricloader": ">=0.16.0",
-    "minecraft": "~1.21",
+    "minecraft": "~1.21.11",
     "java": ">=21",
     "fabric-api": "*"
   }
