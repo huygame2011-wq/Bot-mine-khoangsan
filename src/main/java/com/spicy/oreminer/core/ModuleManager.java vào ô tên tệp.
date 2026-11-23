@@ -1,0 +1,46 @@
+package com.spicy.oreminer.core;
+
+import com.spicy.oreminer.modules.InventoryManager;
+import com.spicy.oreminer.modules.OreSimIntegration;
+import com.spicy.oreminer.modules.SurvivalManager;
+import com.spicy.oreminer.modules.TargetManager;
+import net.minecraft.client.MinecraftClient;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public final class ModuleManager {
+    private static final Map<String, String> MODULE_ERRORS = new LinkedHashMap<>();
+    private static int tickCounter = 0;
+
+    private ModuleManager() {}
+
+    public static void onClientTick(MinecraftClient mc) {
+        if (mc == null || mc.player == null) return;
+        tickCounter++;
+        if (tickCounter % 5 != 0) return;
+
+        runSafe("Kho đồ", () -> InventoryManager.tick(mc));
+        runSafe("Sinh tồn", () -> SurvivalManager.tick(mc));
+        runSafe("Ore Sim", () -> OreSimIntegration.tick(mc));
+        runSafe("Mục tiêu", () -> TargetManager.tick(mc));
+    }
+
+    private static void runSafe(String moduleName, Runnable task) {
+        try {
+            task.run();
+            MODULE_ERRORS.remove(moduleName);
+        } catch (Throwable t) {
+            String err = t.getClass().getSimpleName() + ": " + (t.getMessage() == null ? "Lỗi không xác định" : t.getMessage());
+            if (!err.equals(MODULE_ERRORS.get(moduleName))) {
+                MODULE_ERRORS.put(moduleName, err);
+                LogManager.log(LogManager.Level.LOI, moduleName, "Lỗi độc lập trong module: " + err);
+                NotificationManager.push("err_" + moduleName, "Module bị lỗi: " + moduleName, err, 0xFFFF5252, true);
+            }
+        }
+    }
+
+    public static Map<String, String> getModuleErrors() {
+        return new LinkedHashMap<>(MODULE_ERRORS);
+    }
+}
