@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "spicyoreminer",
+  "version": "${version}",
+  "name": "Spicy Ore Miner",
+  "description": "Hệ thống quản lý, giám sát Ore Sim và hỗ trợ sinh tồn tiếng Việt cho Fabric.",
+  "authors": [
+    "SpicyDev"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.spicy.oreminer.SpicyOreMinerMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
