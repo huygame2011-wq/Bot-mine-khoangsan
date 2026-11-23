@@ -30,14 +30,22 @@ public final class ConfigManager {
     public boolean survivalEnabled = true;
     public boolean lavaDetectEnabled = true;
     public boolean mobDetectEnabled = true;
+    public boolean inventoryEnabled = true;
+    public boolean targetEnabled = true;
 
     public boolean timeoutEnabled = true;
     public int targetTimeoutSeconds = 30;
-    public boolean notifTargetTimeout = true;
+    public int lowDurabilityThreshold = 20;
+    public int lowBreadThreshold = 5;
 
+    public boolean notifSystemState = true;
     public boolean notifTargetChange = true;
+    public boolean notifTargetTimeout = true;
     public boolean notifLava = true;
     public boolean notifMob = true;
+    public boolean notifInventoryFull = true;
+    public boolean notifLowDurability = true;
+    public boolean notifLowBread = true;
 
     private ConfigManager() {}
 
