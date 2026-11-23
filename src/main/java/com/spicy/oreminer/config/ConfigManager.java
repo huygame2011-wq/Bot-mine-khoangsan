@@ -5,117 +5,84 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public final class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String FILE_NAME = "spicy-ore-miner.json";
+
     private static ConfigManager instance;
 
-    public String activeProfile = "Mặc định";
-    public List<String> profiles = new ArrayList<>(Arrays.asList("Mặc định", "Thử nghiệm", "An toàn cao"));
-
-    // Trạng thái module
     public boolean systemEnabled = false;
-    public boolean oreSimEnabled = true;
-    public boolean targetEnabled = true;
-    public boolean survivalEnabled = true;
-    public boolean inventoryEnabled = true;
-    public boolean hudEnabled = true;
-    public boolean notificationsEnabled = true;
-    public boolean loggingEnabled = true;
+    public boolean hudVisible = true;
+    public long worldSeed = 6608149111735331168L;
+    public int scanRadiusXz = 10;
+    public int scanRadiusY = 6;
+    public double reachDistance = 4.2;
+    public boolean autoSwitchPickaxe = true;
+    public boolean breakObstacles = true;
 
-    // Sinh tồn
-    public boolean autoEatMonitor = true;
-    public boolean lavaDetectEnabled = true;
-    public boolean mobDetectEnabled = true;
-    public boolean autoFillHoleTest = false;
-    public int lowBreadThreshold = 4;
-    public int lowDurabilityThreshold = 35;
-
-    // Mục tiêu
-    public String selectedOre = "Kim cương";
-    public String priorityMode = "Gần nhất";
-    public boolean timeoutEnabled = true;
-    public int targetTimeoutSeconds = 60;
-
-    // Thông báo
-    public boolean notifHudEnabled = true;
-    public boolean notifSoundEnabled = true;
-    public int notifDurationSeconds = 5;
-    public boolean notifTargetChange = true;
-    public boolean notifTargetTimeout = true;
-    public boolean notifLava = true;
-    public boolean notifMob = true;
-    public boolean notifInventoryFull = true;
-    public boolean notifLowDurability = true;
-    public boolean notifLowBread = true;
-    public boolean notifModuleError = true;
-    public boolean notifSystemState = true;
-
-    // Giao diện & HUD
-    public int hudX = 12;
-    public int hudY = 12;
-    public float hudScale = 1.0f;
-    public float hudAlpha = 0.85f;
-    public float guiAlpha = 0.92f;
-    public float guiScale = 1.0f;
-    public boolean compactHudLayout = false;
+    private ConfigManager() {}
 
     public static ConfigManager get() {
         if (instance == null) {
-            instance = load("Mặc định");
+            instance = load();
         }
         return instance;
     }
 
-    private static Path getProfilePath(String profileName) {
-        String safeName = profileName.replaceAll("[^a-zA-Z0-9_\\-]", "_");
-        if (safeName.isEmpty()) safeName = "default";
-        return FabricLoader.getInstance().getConfigDir()
-                .resolve("spicy_ore_miner")
-                .resolve("profile_" + safeName + ".json");
-    }
-
-    public static ConfigManager load(String profileName) {
-        Path path = getProfilePath(profileName);
+    public static ConfigManager load() {
+        Path path = getConfigPath();
         if (Files.exists(path)) {
-            try {
-                String json = Files.readString(path, StandardCharsets.UTF_8);
-                ConfigManager loaded = GSON.fromJson(json, ConfigManager.class);
+            try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+                ConfigManager loaded = GSON.fromJson(reader, ConfigManager.class);
                 if (loaded != null) {
-                    loaded.activeProfile = profileName;
                     instance = loaded;
-                    return loaded;
+                    return instance;
                 }
             } catch (Exception ignored) {
+                // Nếu file cấu hình hỏng thì dùng mặc định và ghi đè lại an toàn
             }
         }
-        ConfigManager fresh = new ConfigManager();
-        fresh.activeProfile = profileName;
-        instance = fresh;
-        fresh.save();
-        return fresh;
+        instance = new ConfigManager();
+        instance.save();
+        return instance;
     }
 
     public void save() {
         try {
-            Path path = getProfilePath(activeProfile);
+            Path path = getConfigPath();
             Files.createDirectories(path.getParent());
-            Files.writeString(path, GSON.toJson(this), StandardCharsets.UTF_8);
+            try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+                GSON.toJson(this, writer);
+            }
         } catch (IOException ignored) {
+            // Tránh làm crash client nếu bộ nhớ/quyền ghi tạm thời gặp sự cố
         }
     }
 
-    public void resetDefaults() {
-        String current = this.activeProfile;
-        ConfigManager fresh = new ConfigManager();
-        fresh.activeProfile = current;
-        instance = fresh;
-        fresh.save();
+    public static boolean isHudVisible() {
+        return get().hudVisible;
+    }
+
+    public static void setHudVisible(boolean visible) {
+        ConfigManager cfg = get();
+        cfg.hudVisible = visible;
+        cfg.save();
+    }
+
+    public static boolean toggleHudVisible() {
+        ConfigManager cfg = get();
+        cfg.hudVisible = !cfg.hudVisible;
+        cfg.save();
+        return cfg.hudVisible;
+    }
+
+    private static Path getConfigPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
     }
 }
