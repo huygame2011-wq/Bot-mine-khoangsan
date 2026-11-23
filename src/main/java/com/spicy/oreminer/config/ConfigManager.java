@@ -26,6 +26,15 @@ public final class ConfigManager {
     public boolean autoSwitchPickaxe = true;
     public boolean breakObstacles = true;
 
+    public boolean oreSimEnabled = true;
+    public boolean survivalEnabled = true;
+    public boolean lavaDetectEnabled = true;
+    public boolean mobDetectEnabled = true;
+
+    public boolean notifTargetChange = true;
+    public boolean notifLava = true;
+    public boolean notifMob = true;
+
     private ConfigManager() {}
 
     public static ConfigManager get() {
@@ -45,7 +54,6 @@ public final class ConfigManager {
                     return instance;
                 }
             } catch (Exception ignored) {
-                // Nếu file cấu hình hỏng thì dùng mặc định và ghi đè lại an toàn
             }
         }
         instance = new ConfigManager();
@@ -61,7 +69,6 @@ public final class ConfigManager {
                 GSON.toJson(this, writer);
             }
         } catch (IOException ignored) {
-            // Tránh làm crash client nếu bộ nhớ/quyền ghi tạm thời gặp sự cố
         }
     }
 
