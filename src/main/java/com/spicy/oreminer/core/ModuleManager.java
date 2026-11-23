@@ -18,10 +18,7 @@ public final class ModuleManager {
     private ModuleManager() {}
 
     public static void onClientTick(MinecraftClient mc) {
-        if (mc == null) return;
-
-        NotificationManager.tick();
-        if (mc.player == null) return;
+        if (mc == null || mc.player == null) return;
 
         tickCounter++;
         if (tickCounter % 5 != 0) return;
