@@ -2,27 +2,29 @@ package com.spicy.oreminer.core;
 
 import com.spicy.oreminer.config.ConfigManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.sound.SoundEvents;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 public final class NotificationManager {
     public static final class Entry {
-        public final String key;
+        public final String id;
         public final String title;
         public final String message;
-        public final int color;
-        public final long expireAtMs;
+        public final int accentColor;
+        public int remainingTicks;
+        public final int maxTicks;
 
-        public Entry(String key, String title, String message, int color, long expireAtMs) {
-            this.key = key;
+        public Entry(String id, String title, String message, int accentColor, int durationTicks) {
+            this.id = id;
             this.title = title;
             this.message = message;
-            this.color = color;
-            this.expireAtMs = expireAtMs;
+            this.accentColor = accentColor;
+            this.maxTicks = Math.max(20, durationTicks);
+            this.remainingTicks = this.maxTicks;
         }
     }
 
@@ -30,45 +32,60 @@ public final class NotificationManager {
 
     private NotificationManager() {}
 
-    public static void push(String key, String title, String message, int color, boolean typeEnabled) {
+    public static void push(String id, String title, String message, int accentColor) {
+        push(id, title, message, accentColor, true);
+    }
+
+    public static void push(String id, String title, String message, int accentColor, boolean enabledFlag) {
         ConfigManager cfg = ConfigManager.get();
-        if (!cfg.notificationsEnabled || !typeEnabled) {
+        if (!cfg.notificationsEnabled || !enabledFlag) {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        int durationSec = Math.max(2, cfg.notifDurationSeconds);
-        long expireAt = now + durationSec * 1000L;
+        int durationTicks = Math.max(1, cfg.notifDurationSeconds) * 20;
 
-        ACTIVE.removeIf(e -> e.key != null && e.key.equals(key));
-        ACTIVE.add(0, new Entry(key, title, message, color, expireAt));
-        if (ACTIVE.size() > 5) {
-            ACTIVE.subList(5, ACTIVE.size()).clear();
+        if (id != null && !id.isBlank()) {
+            for (Entry existing : ACTIVE) {
+                if (id.equals(existing.id)) {
+                    existing.remainingTicks = durationTicks;
+                    return;
+                }
+            }
+        }
+
+        ACTIVE.add(0, new Entry(id, title, message, accentColor, durationTicks));
+        while (ACTIVE.size() > 5) {
+            ACTIVE.remove(ACTIVE.size() - 1);
+        }
+
+        if (cfg.consoleLogEnabled) {
+            LogManager.log(LogManager.Level.THONG_TIN, "NOTIF", title + ": " + message);
         }
 
         if (cfg.notifSoundEnabled) {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc != null && mc.player != null) {
-                mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.35f, 1.15f);
+                mc.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
             }
         }
     }
 
-    public static List<Entry> getActiveEntries() {
-        long now = System.currentTimeMillis();
+    public static void tick() {
+        if (ACTIVE.isEmpty()) {
+            return;
+        }
         Iterator<Entry> it = ACTIVE.iterator();
         while (it.hasNext()) {
             Entry e = it.next();
-            if (e.expireAtMs <= now) {
+            e.remainingTicks--;
+            if (e.remainingTicks <= 0) {
                 it.remove();
             }
         }
-        return Collections.unmodifiableList(ACTIVE);
     }
 
-    public static boolean isHudNotificationEnabled() {
-        ConfigManager cfg = ConfigManager.get();
-        return cfg.notificationsEnabled && cfg.notifHudEnabled;
+    public static List<Entry> getActive() {
+        return ACTIVE;
     }
 
     public static void clear() {
