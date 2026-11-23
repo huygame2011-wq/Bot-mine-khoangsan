@@ -14,15 +14,17 @@ public final class NotificationManager {
         public final String id;
         public final String title;
         public final String message;
+        public final int color;
         public final int accentColor;
         public int remainingTicks;
         public final int maxTicks;
 
-        public Entry(String id, String title, String message, int accentColor, int durationTicks) {
+        public Entry(String id, String title, String message, int color, int durationTicks) {
             this.id = id;
             this.title = title;
             this.message = message;
-            this.accentColor = accentColor;
+            this.color = color;
+            this.accentColor = color;
             this.maxTicks = Math.max(20, durationTicks);
             this.remainingTicks = this.maxTicks;
         }
@@ -32,11 +34,16 @@ public final class NotificationManager {
 
     private NotificationManager() {}
 
-    public static void push(String id, String title, String message, int accentColor) {
-        push(id, title, message, accentColor, true);
+    public static boolean isHudNotificationEnabled() {
+        ConfigManager cfg = ConfigManager.get();
+        return cfg.notificationsEnabled && cfg.notifHudEnabled;
     }
 
-    public static void push(String id, String title, String message, int accentColor, boolean enabledFlag) {
+    public static void push(String id, String title, String message, int color) {
+        push(id, title, message, color, true);
+    }
+
+    public static void push(String id, String title, String message, int color, boolean enabledFlag) {
         ConfigManager cfg = ConfigManager.get();
         if (!cfg.notificationsEnabled || !enabledFlag) {
             return;
@@ -53,7 +60,7 @@ public final class NotificationManager {
             }
         }
 
-        ACTIVE.add(0, new Entry(id, title, message, accentColor, durationTicks));
+        ACTIVE.add(0, new Entry(id, title, message, color, durationTicks));
         while (ACTIVE.size() > 5) {
             ACTIVE.remove(ACTIVE.size() - 1);
         }
@@ -82,6 +89,10 @@ public final class NotificationManager {
                 it.remove();
             }
         }
+    }
+
+    public static List<Entry> getActiveEntries() {
+        return ACTIVE;
     }
 
     public static List<Entry> getActive() {
