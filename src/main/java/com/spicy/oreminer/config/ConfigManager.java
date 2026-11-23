@@ -31,6 +31,10 @@ public final class ConfigManager {
     public boolean lavaDetectEnabled = true;
     public boolean mobDetectEnabled = true;
 
+    public boolean timeoutEnabled = true;
+    public int targetTimeoutSeconds = 30;
+    public boolean notifTargetTimeout = true;
+
     public boolean notifTargetChange = true;
     public boolean notifLava = true;
     public boolean notifMob = true;
