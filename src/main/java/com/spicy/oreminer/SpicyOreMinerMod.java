@@ -4,8 +4,8 @@ import com.spicy.oreminer.config.ConfigManager;
 import com.spicy.oreminer.core.HudVisibilityManager;
 import com.spicy.oreminer.core.ModuleManager;
 import com.spicy.oreminer.core.SafetyManager;
-import com.spicy.oreminer.gui.SpicyMinerScreen;
 import com.spicy.oreminer.modules.OreDisplayTracker;
+import com.spicy.oreminer.ui.SpicyMinerScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -49,11 +49,11 @@ public class SpicyOreMinerMod implements ClientModInitializer {
         TextRenderer tr = mc.textRenderer;
         int x = 10;
         int y = 10;
-        int width = 190;
+        int width = 195;
         int height = 64;
 
         context.fill(x, y, x + width, y + height, 0xAA0D0B14);
-        context.drawBorder(x, y, width, height, 0xFF9C27B0);
+        drawBoxBorder(context, x, y, width, height, 0xFF9C27B0);
 
         context.drawTextWithShadow(tr, Text.literal("SPICY ORE MINER v1"), x + 8, y + 6, 0xFFE1BEE7);
 
@@ -78,5 +78,12 @@ public class SpicyOreMinerMod implements ClientModInitializer {
                 y + 48,
                 0xFFCCCCCC
         );
+    }
+
+    private static void drawBoxBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y, x + 1, y + height, color);
+        context.fill(x + width - 1, y, x + width, y + height, color);
     }
 }
