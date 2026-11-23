@@ -7,7 +7,6 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -42,17 +41,15 @@ public final class OreDisplayTracker {
     public static void tick(MinecraftClient mc) {
         if (mc == null || mc.world == null) return;
 
-        Iterator> it = ACTIVE_DISPLAY_ORES.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<BlockPos, Block> entry = it.next();
+        ACTIVE_DISPLAY_ORES.entrySet().removeIf(entry -> {
             BlockPos pos = entry.getKey();
             Block currentBlock = mc.world.getBlockState(pos).getBlock();
-
-            if (mc.world.getBlockState(pos).isAir() || currentBlock != entry.getValue()) {
+            boolean minedOrChanged = mc.world.getBlockState(pos).isAir() || currentBlock != entry.getValue();
+            if (minedOrChanged) {
                 MINED_POSITIONS.add(pos);
-                it.remove();
             }
-        }
+            return minedOrChanged;
+        });
     }
 
     public static Map<BlockPos, Block> getActiveDisplayOres() {
