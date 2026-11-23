@@ -1,7 +1,9 @@
 package com.spicy.oreminer.core;
 
 import com.spicy.oreminer.config.ConfigManager;
+import com.spicy.oreminer.modules.AutoMinerController;
 import com.spicy.oreminer.modules.InventoryManager;
+import com.spicy.oreminer.modules.OreDisplayTracker;
 import com.spicy.oreminer.modules.OreSimIntegration;
 import com.spicy.oreminer.modules.SurvivalManager;
 import com.spicy.oreminer.modules.TargetManager;
@@ -18,20 +20,34 @@ public final class ModuleManager {
     private ModuleManager() {}
 
     public static void onClientTick(MinecraftClient mc) {
-        if (mc == null || mc.player == null) return;
-
-        tickCounter++;
-        if (tickCounter % 5 != 0) return;
+        if (mc == null || mc.player == null) {
+            releaseMovementKeys(mc);
+            return;
+        }
 
         ConfigManager cfg = ConfigManager.get();
         if (!cfg.systemEnabled || SafetyManager.isEmergencyStopped() || SafetyManager.isPaused()) {
+            releaseMovementKeys(mc);
             return;
         }
+
+        OreDisplayTracker.tick(mc);
+        runSafe("Tự đào", () -> AutoMinerController.tick(mc));
+
+        tickCounter++;
+        if (tickCounter % 5 != 0) return;
 
         runSafe("Kho đồ", () -> InventoryManager.tick(mc));
         runSafe("Sinh tồn", () -> SurvivalManager.tick(mc));
         runSafe("Ore Sim", () -> OreSimIntegration.tick(mc));
         runSafe("Mục tiêu", () -> TargetManager.tick(mc));
+    }
+
+    private static void releaseMovementKeys(MinecraftClient mc) {
+        if (mc == null || mc.options == null) return;
+        mc.options.forwardKey.setPressed(false);
+        mc.options.jumpKey.setPressed(false);
+        mc.options.attackKey.setPressed(false);
     }
 
     private static void runSafe(String moduleName, Runnable task) {
