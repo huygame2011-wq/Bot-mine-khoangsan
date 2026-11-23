@@ -4,35 +4,41 @@ import com.spicy.oreminer.config.ConfigManager;
 import net.minecraft.client.MinecraftClient;
 
 public final class HudVisibilityManager {
+    private static boolean visible = true;
+    private static boolean initialized = false;
+
     private HudVisibilityManager() {}
 
+    public static void initFromConfig() {
+        ConfigManager cfg = ConfigManager.get();
+        visible = cfg.notifHudEnabled || true;
+        initialized = true;
+    }
+
     public static boolean isVisible() {
-        return ConfigManager.isHudVisible();
+        if (!initialized) {
+            initFromConfig();
+        }
+        return visible;
     }
 
-    public static void setVisible(boolean visible) {
-        ConfigManager.setHudVisible(visible);
-        LogManager.log(
-                LogManager.Level.THONG_TIN,
-                "HUD",
-                visible ? "Đã hiện menu hiển thị" : "Đã ẩn menu hiển thị"
-        );
-        NotificationManager.push(
-                "hud_toggle",
-                "HUD",
-                visible ? "Menu hiển thị: Đang hiện" : "Menu hiển thị: Đang ẩn",
-                visible ? 0xFF69F0AE : 0xFFFFD54F,
-                ConfigManager.get().notifHudEnabled
-        );
+    public static void setVisible(boolean value) {
+        if (!initialized) {
+            initFromConfig();
+        }
+        visible = value;
     }
 
-    public static boolean toggle() {
-        boolean next = !isVisible();
-        setVisible(next);
-        return next;
+    public static void toggle() {
+        setVisible(!isVisible());
     }
 
     public static void tick(MinecraftClient mc) {
-        if (mc == null || mc.player == null) return;
+        if (!initialized) {
+            initFromConfig();
+        }
+        if (mc == null || mc.player == null) {
+            return;
+        }
     }
 }
