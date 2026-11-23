@@ -1,61 +1,58 @@
 package com.spicy.oreminer.core;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+import com.spicy.oreminer.config.ConfigManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 
 public final class LogManager {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final List<Entry> ENTRIES = new ArrayList<>();
-    private static final int MAX_ENTRIES = 300;
+    public enum Level {
+        THONG_TIN,
+        CANH_BAO,
+        LOI
+    }
+
+    public record LogEntry(long timestampMs, Level level, String tag, String message) {}
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("SpicyOreMiner");
+    private static final int MAX_ENTRIES = 100;
+    private static final Deque<LogEntry> ENTRIES = new ArrayDeque<>();
 
     private LogManager() {}
 
-    public enum Level {
-        THONG_TIN("Thông tin", 0xFFE9D5FF),
-        CANH_BAO("Cảnh báo", 0xFFFFD54F),
-        LOI("Lỗi", 0xFFFF5252),
-        AN_TOAN("An toàn", 0xFF69F0AE);
+    public static synchronized void log(Level level, String tag, String message) {
+        Level safeLevel = level == null ? Level.THONG_TIN : level;
+        String safeTag = (tag == null || tag.isBlank()) ? "CORE" : tag;
+        String safeMsg = message == null ? "" : message;
 
-        public final String label;
-        private final int argb;
-
-        Level(String label, int argb) {
-            this.label = label;
-            this.argb = argb;
+        ENTRIES.addLast(new LogEntry(System.currentTimeMillis(), safeLevel, safeTag, safeMsg));
+        while (ENTRIES.size() > MAX_ENTRIES) {
+            ENTRIES.removeFirst();
         }
 
-        public int color() {
-            return argb;
+        ConfigManager cfg = ConfigManager.get();
+        if (cfg != null && !cfg.consoleLogEnabled) {
+            return;
+        }
+
+        String formatted = "[" + safeTag + "] " + safeMsg;
+        switch (safeLevel) {
+            case LOI -> LOGGER.error(formatted);
+            case CANH_BAO -> LOGGER.warn(formatted);
+            case THONG_TIN -> LOGGER.info(formatted);
         }
     }
 
-    public record Entry(String time, Level level, String module, String message) {}
-
-    public static synchronized void log(Level level, String module, String message) {
-        String now = LocalTime.now().format(TIME_FMT);
-        ENTRIES.add(new Entry(now, level, module, message));
-        if (ENTRIES.size() > MAX_ENTRIES) {
-            ENTRIES.remove(0);
-        }
+    public static synchronized List<LogEntry> getRecentLogs() {
+        return Collections.unmodifiableList(new ArrayList<>(ENTRIES));
     }
 
     public static synchronized void clear() {
         ENTRIES.clear();
-    }
-
-    public static synchronized List<Entry> getEntries(Level filter) {
-        if (filter == null) {
-            return Collections.unmodifiableList(new ArrayList<>(ENTRIES));
-        }
-        List<Entry> out = new ArrayList<>();
-        for (Entry e : ENTRIES) {
-            if (e.level == filter) {
-                out.add(e);
-            }
-        }
-        return Collections.unmodifiableList(out);
     }
 }
