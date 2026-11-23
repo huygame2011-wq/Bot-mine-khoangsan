@@ -2,142 +2,118 @@ package com.spicy.oreminer;
 
 import com.spicy.oreminer.config.ConfigManager;
 import com.spicy.oreminer.core.HudVisibilityManager;
+import com.spicy.oreminer.core.LogManager;
 import com.spicy.oreminer.core.ModuleManager;
+import com.spicy.oreminer.core.NotificationManager;
 import com.spicy.oreminer.core.SafetyManager;
-import com.spicy.oreminer.modules.OreDisplayTracker;
+import com.spicy.oreminer.ui.SpicyMinerHud;
 import com.spicy.oreminer.ui.SpicyMinerScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
-
-import java.util.Map;
 
 public class SpicyOreMinerMod implements ClientModInitializer {
     public static final String MOD_ID = "spicyoreminer";
 
-    private static KeyBinding openMenuKey;
-    private static KeyBinding toggleHudKey;
-    private static KeyBinding toggleSystemKey;
+    public static KeyBinding openMenuKey;
+    public static KeyBinding toggleHudKey;
+    public static KeyBinding toggleSystemKey;
 
     @Override
     public void onInitializeClient() {
         ConfigManager.load();
+        HudVisibilityManager.initFromConfig();
+
+        KeyBinding.Category mainCategory = KeyBinding.Category.create(
+                Identifier.of(MOD_ID, "main")
+        );
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.spicyoreminer.open_menu",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
-                "category.spicyoreminer.main"
+                mainCategory
         ));
 
         toggleHudKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.spicyoreminer.toggle_hud",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_H,
-                "category.spicyoreminer.main"
+                mainCategory
         ));
 
         toggleSystemKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.spicyoreminer.toggle_system",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_G,
-                "category.spicyoreminer.main"
+                mainCategory
         ));
 
-        ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
-        HudRenderCallback.EVENT.register(this::onHudRender);
+        ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
+        HudRenderCallback.EVENT.register(SpicyMinerHud::render);
+
+        LogManager.log(LogManager.Level.THONG_TIN, "INIT", "Spicy Ore Miner v1 đã khởi tạo.");
     }
 
-    private void onEndClientTick(MinecraftClient mc) {
-        if (mc == null || mc.player == null) {
+    private void onClientTick(MinecraftClient mc) {
+        if (mc == null) {
             return;
         }
 
         while (openMenuKey.wasPressed()) {
-            if (mc.currentScreen == null) {
-                mc.setScreen(new SpicyMinerScreen(null));
+            if (mc.player != null) {
+                mc.setScreen(new SpicyMinerScreen(mc.currentScreen));
             }
         }
 
         while (toggleHudKey.wasPressed()) {
             HudVisibilityManager.toggle();
+            boolean visible = HudVisibilityManager.isVisible();
+            NotificationManager.push(
+                    "hud_toggle",
+                    "HUD thông tin",
+                    visible ? "Đã bật hiển thị HUD" : "Đã ẩn HUD",
+                    visible ? 0xFF69F0AE : 0xFFFFD54F,
+                    true
+            );
+            if (mc.player != null) {
+                mc.player.sendMessage(
+                        Text.literal("[Spicy Miner] HUD: " + (visible ? "BẬT" : "TẮT")),
+                        true
+                );
+            }
         }
 
         while (toggleSystemKey.wasPressed()) {
             ConfigManager cfg = ConfigManager.get();
-            cfg.systemEnabled = !cfg.systemEnabled;
-            cfg.save();
-        }
-
-        ConfigManager cfg = ConfigManager.get();
-        if (cfg.systemEnabled && !SafetyManager.isEmergencyStopped()) {
-            ModuleManager.onClientTick(mc);
+            boolean nextState = !cfg.systemEnabled;
+            if (nextState && SafetyManager.isEmergencyStopped()) {
+                SafetyManager.clearEmergencyStop();
+            }
+            ModuleManager.setSystemEnabled(mc, nextState);
+            NotificationManager.push(
+                    "system_toggle",
+                    "Hệ thống đào",
+                    nextState ? "Hệ thống đang BẬT" : "Hệ thống đã TẮT — nhả điều khiển",
+                    nextState ? 0xFF69F0AE : 0xFFFF5252,
+                    true
+            );
+            if (mc.player != null) {
+                mc.player.sendMessage(
+                        Text.literal("[Spicy Miner] Hệ thống: " + (nextState ? "BẬT" : "TẮT")),
+                        true
+                );
+            }
         }
 
         HudVisibilityManager.tick(mc);
-    }
-
-    private void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.player == null || mc.options.hudHidden) {
-            return;
-        }
-
-        if (!HudVisibilityManager.isVisible() && !(mc.currentScreen instanceof SpicyMinerScreen)) {
-            return;
-        }
-
-        ConfigManager cfg = ConfigManager.get();
-        TextRenderer tr = mc.textRenderer;
-        int x = 10;
-        int y = 10;
-        int width = 200;
-        int height = 64;
-
-        context.fill(x, y, x + width, y + height, 0xAA0D0B14);
-        drawBoxBorder(context, x, y, width, height, 0xFF9C27B0);
-
-        context.drawTextWithShadow(tr, Text.literal("SPICY ORE MINER v1"), x + 8, y + 6, 0xFFE1BEE7);
-
-        boolean stopped = SafetyManager.isEmergencyStopped();
-        String sysStatus = stopped
-                ? "Trạng thái: DỪNG KHẨN CẤP"
-                : (cfg.systemEnabled ? "Trạng thái: Đang bật" : "Trạng thái: Đang tắt");
-        int sysColor = stopped
-                ? 0xFFFF5252
-                : (cfg.systemEnabled ? 0xFF69F0AE : 0xFFFFD54F);
-        context.drawTextWithShadow(tr, Text.literal(sysStatus), x + 8, y + 20, sysColor);
-
-        Map<BlockPos, Block> activeOres = OreDisplayTracker.getActiveDisplayOres();
-        String oreSummary = (!cfg.systemEnabled || activeOres.isEmpty())
-                ? "Quặng hiển thị: 0 (Chờ mục tiêu)"
-                : "Quặng hiển thị: " + activeOres.size() + " vị trí";
-        context.drawTextWithShadow(tr, Text.literal(oreSummary), x + 8, y + 34, 0xFFB3E5FC);
-
-        context.drawTextWithShadow(
-                tr,
-                Text.literal("HUD: " + (HudVisibilityManager.isVisible() ? "Đang hiện" : "Đang ẩn")),
-                x + 8,
-                y + 48,
-                0xFFCCCCCC
-        );
-    }
-
-    private static void drawBoxBorder(DrawContext context, int x, int y, int width, int height, int color) {
-        context.fill(x, y, x + width, y + 1, color);
-        context.fill(x, y + height - 1, x + width, y + height, color);
-        context.fill(x, y, x + 1, y + height, color);
-        context.fill(x + width - 1, y, x + width, y + height, color);
+        ModuleManager.onClientTick(mc);
     }
 }
