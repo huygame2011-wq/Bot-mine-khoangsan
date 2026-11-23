@@ -1,46 +1,49 @@
 package com.spicy.oreminer.core;
 
+import com.spicy.oreminer.config.ConfigManager;
 import com.spicy.oreminer.modules.InventoryManager;
 import com.spicy.oreminer.modules.OreSimIntegration;
 import com.spicy.oreminer.modules.SurvivalManager;
 import com.spicy.oreminer.modules.TargetManager;
 import net.minecraft.client.MinecraftClient;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class ModuleManager {
     private static final Map<String, String> MODULE_ERRORS = new LinkedHashMap<>();
-    private static int tickCounter = 0;
 
     private ModuleManager() {}
 
     public static void onClientTick(MinecraftClient mc) {
-        if (mc == null || mc.player == null) return;
-        tickCounter++;
-        if (tickCounter % 5 != 0) return;
+        if (mc == null) return;
 
-        runSafe("Kho đồ", () -> InventoryManager.tick(mc));
-        runSafe("Sinh tồn", () -> SurvivalManager.tick(mc));
-        runSafe("Ore Sim", () -> OreSimIntegration.tick(mc));
-        runSafe("Mục tiêu", () -> TargetManager.tick(mc));
+        NotificationManager.tick();
+        ConfigManager cfg = ConfigManager.get();
+
+        if (!cfg.systemEnabled || SafetyManager.isEmergencyStopped() || SafetyManager.isPaused()) {
+            return;
+        }
+
+        runModule("OreSim", () -> OreSimIntegration.tick(mc));
+        runModule("Target", () -> TargetManager.tick(mc));
+        runModule("Inventory", () -> InventoryManager.tick(mc));
+        runModule("Survival", () -> SurvivalManager.tick(mc));
     }
 
-    private static void runSafe(String moduleName, Runnable task) {
+    private static void runModule(String name, Runnable task) {
         try {
             task.run();
-            MODULE_ERRORS.remove(moduleName);
-        } catch (Throwable t) {
-            String err = t.getClass().getSimpleName() + ": " + (t.getMessage() == null ? "Lỗi không xác định" : t.getMessage());
-            if (!err.equals(MODULE_ERRORS.get(moduleName))) {
-                MODULE_ERRORS.put(moduleName, err);
-                LogManager.log(LogManager.Level.LOI, moduleName, "Lỗi độc lập trong module: " + err);
-                NotificationManager.push("err_" + moduleName, "Module bị lỗi: " + moduleName, err, 0xFFFF5252, true);
-            }
+            MODULE_ERRORS.remove(name);
+        } catch (Exception ex) {
+            String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+            MODULE_ERRORS.put(name, msg);
+            LogManager.log(LogManager.Level.LOI, name, "Lỗi module: " + msg);
         }
     }
 
     public static Map<String, String> getModuleErrors() {
-        return new LinkedHashMap<>(MODULE_ERRORS);
+        return Collections.unmodifiableMap(MODULE_ERRORS);
     }
 }
