@@ -26,6 +26,21 @@ public class ConfigManager {
     public int scanRadiusXz = 12;
     public int scanRadiusY = 8;
 
+    // Kho đồ & độ bền & thức ăn (InventoryManager)
+    public boolean inventoryEnabled = true;
+    public int lowDurabilityThreshold = 25;
+    public int lowBreadThreshold = 5;
+
+    // Mục tiêu & thời gian chờ (TargetManager)
+    public boolean targetEnabled = true;
+    public boolean timeoutEnabled = true;
+    public int targetTimeoutSeconds = 45;
+
+    // Sinh tồn & cảnh báo nguy hiểm (SurvivalManager)
+    public boolean survivalEnabled = true;
+    public boolean lavaDetectEnabled = true;
+    public boolean mobDetectEnabled = true;
+
     // Hiển thị HUD
     public float hudX = 10.0f;
     public float hudY = 10.0f;
@@ -38,6 +53,14 @@ public class ConfigManager {
     public boolean notifHudEnabled = true;
     public boolean notifSoundEnabled = false;
     public boolean consoleLogEnabled = true;
+
+    public boolean notifInventoryFull = true;
+    public boolean notifLowDurability = true;
+    public boolean notifLowBread = true;
+    public boolean notifTargetTimeout = true;
+    public boolean notifTargetChange = true;
+    public boolean notifLava = true;
+    public boolean notifMob = true;
 
     public static synchronized ConfigManager get() {
         if (instance == null) {
@@ -57,7 +80,6 @@ public class ConfigManager {
                     return;
                 }
             } catch (Exception ignored) {
-                // Nếu file cấu hình lỗi định dạng thì tạo lại mặc định bên dưới
             }
         }
 
@@ -84,6 +106,9 @@ public class ConfigManager {
         }
         scanRadiusXz = Math.max(1, Math.min(24, scanRadiusXz));
         scanRadiusY = Math.max(1, Math.min(16, scanRadiusY));
+        lowDurabilityThreshold = Math.max(1, Math.min(500, lowDurabilityThreshold));
+        lowBreadThreshold = Math.max(0, Math.min(64, lowBreadThreshold));
+        targetTimeoutSeconds = Math.max(5, Math.min(600, targetTimeoutSeconds));
         hudX = Math.max(0.0f, Math.min(2000.0f, hudX));
         hudY = Math.max(0.0f, Math.min(2000.0f, hudY));
         hudAlpha = Math.max(0.15f, Math.min(1.0f, hudAlpha));
