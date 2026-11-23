@@ -2,69 +2,47 @@ package com.spicy.oreminer.core;
 
 import com.spicy.oreminer.config.ConfigManager;
 import com.spicy.oreminer.modules.AutoMinerController;
-import com.spicy.oreminer.modules.InventoryManager;
-import com.spicy.oreminer.modules.OreDisplayTracker;
-import com.spicy.oreminer.modules.OreSimIntegration;
-import com.spicy.oreminer.modules.SurvivalManager;
-import com.spicy.oreminer.modules.TargetManager;
 import net.minecraft.client.MinecraftClient;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 public final class ModuleManager {
-    private static final Map<String, String> MODULE_ERRORS = new LinkedHashMap<>();
-    private static int tickCounter = 0;
+    private static boolean wasSystemEnabled = false;
 
     private ModuleManager() {}
 
     public static void onClientTick(MinecraftClient mc) {
-        if (mc == null || mc.player == null) {
-            releaseMovementKeys(mc);
+        if (mc == null || mc.player == null || mc.world == null) {
+            wasSystemEnabled = false;
             return;
         }
 
         ConfigManager cfg = ConfigManager.get();
-        if (!cfg.systemEnabled || SafetyManager.isEmergencyStopped() || SafetyManager.isPaused()) {
-            releaseMovementKeys(mc);
+        boolean active = cfg.systemEnabled && !SafetyManager.isEmergencyStopped();
+
+        if (!active) {
+            if (wasSystemEnabled) {
+                AutoMinerController.stopAndRelease(mc);
+                wasSystemEnabled = false;
+            }
             return;
         }
 
-        OreDisplayTracker.tick(mc);
-        runSafe("Tự đào", () -> AutoMinerController.tick(mc));
-
-        tickCounter++;
-        if (tickCounter % 5 != 0) return;
-
-        runSafe("Kho đồ", () -> InventoryManager.tick(mc));
-        runSafe("Sinh tồn", () -> SurvivalManager.tick(mc));
-        runSafe("Ore Sim", () -> OreSimIntegration.tick(mc));
-        runSafe("Mục tiêu", () -> TargetManager.tick(mc));
+        wasSystemEnabled = true;
+        AutoMinerController.tick(mc);
     }
 
-    private static void releaseMovementKeys(MinecraftClient mc) {
-        if (mc == null || mc.options == null) return;
-        mc.options.forwardKey.setPressed(false);
-        mc.options.jumpKey.setPressed(false);
-        mc.options.attackKey.setPressed(false);
-    }
+    public static void setSystemEnabled(MinecraftClient mc, boolean enabled) {
+        ConfigManager cfg = ConfigManager.get();
+        cfg.systemEnabled = enabled;
+        cfg.save();
 
-    private static void runSafe(String moduleName, Runnable task) {
-        try {
-            task.run();
-            MODULE_ERRORS.remove(moduleName);
-        } catch (Throwable t) {
-            String err = t.getClass().getSimpleName() + ": " + (t.getMessage() == null ? "Lỗi không xác định" : t.getMessage());
-            if (!err.equals(MODULE_ERRORS.get(moduleName))) {
-                MODULE_ERRORS.put(moduleName, err);
-                LogManager.log(LogManager.Level.LOI, moduleName, "Lỗi độc lập trong module: " + err);
-                NotificationManager.push("err_" + moduleName, moduleName, "Module bị lỗi: " + moduleName, 0xFFFF5252, true);
-            }
+        if (!enabled) {
+            AutoMinerController.stopAndRelease(mc);
+            wasSystemEnabled = false;
         }
     }
 
-    public static Map<String, String> getModuleErrors() {
-        return Collections.unmodifiableMap(MODULE_ERRORS);
+    public static boolean isSystemActive() {
+        ConfigManager cfg = ConfigManager.get();
+        return cfg.systemEnabled && !SafetyManager.isEmergencyStopped();
     }
 }
