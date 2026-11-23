@@ -5,30 +5,7 @@ import com.spicy.oreminer.modules.AutoMinerController;
 import net.minecraft.client.MinecraftClient;
 
 public final class ModuleManager {
-    private static boolean wasSystemEnabled = false;
-
     private ModuleManager() {}
-
-    public static void onClientTick(MinecraftClient mc) {
-        if (mc == null || mc.player == null || mc.world == null) {
-            wasSystemEnabled = false;
-            return;
-        }
-
-        ConfigManager cfg = ConfigManager.get();
-        boolean active = cfg.systemEnabled && !SafetyManager.isEmergencyStopped();
-
-        if (!active) {
-            if (wasSystemEnabled) {
-                AutoMinerController.stopAndRelease(mc);
-                wasSystemEnabled = false;
-            }
-            return;
-        }
-
-        wasSystemEnabled = true;
-        AutoMinerController.tick(mc);
-    }
 
     public static void setSystemEnabled(MinecraftClient mc, boolean enabled) {
         ConfigManager cfg = ConfigManager.get();
@@ -37,12 +14,24 @@ public final class ModuleManager {
 
         if (!enabled) {
             AutoMinerController.stopAndRelease(mc);
-            wasSystemEnabled = false;
+            LogManager.log(LogManager.Level.THONG_TIN, "MODULE", "Hệ thống đã tắt và nhả điều khiển.");
+        } else {
+            SafetyManager.clearEmergencyStop();
+            LogManager.log(LogManager.Level.THONG_TIN, "MODULE", "Hệ thống đã bật.");
         }
     }
 
-    public static boolean isSystemActive() {
+    public static void onClientTick(MinecraftClient mc) {
+        if (mc == null) {
+            return;
+        }
+
         ConfigManager cfg = ConfigManager.get();
-        return cfg.systemEnabled && !SafetyManager.isEmergencyStopped();
+        if (SafetyManager.isEmergencyStopped() || !cfg.systemEnabled || mc.player == null || mc.world == null) {
+            AutoMinerController.stopAndRelease(mc);
+            return;
+        }
+
+        AutoMinerController.tick(mc);
     }
 }
