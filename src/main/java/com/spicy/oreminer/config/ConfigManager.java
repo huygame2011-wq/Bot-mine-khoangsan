@@ -19,6 +19,14 @@ public final class ConfigManager {
 
     public boolean systemEnabled = false;
     public boolean hudVisible = true;
+    public boolean hudEnabled = true;
+    public String activeProfile = "Mặc định";
+    public boolean compactHudLayout = false;
+    public float hudX = 10.0f;
+    public float hudY = 10.0f;
+    public float hudScale = 1.0f;
+    public float hudAlpha = 0.85f;
+
     public long worldSeed = 6608149111735331168L;
     public int scanRadiusXz = 10;
     public int scanRadiusY = 6;
@@ -38,6 +46,10 @@ public final class ConfigManager {
     public int lowDurabilityThreshold = 20;
     public int lowBreadThreshold = 5;
 
+    public boolean notificationsEnabled = true;
+    public int notifDurationSeconds = 4;
+    public boolean notifSoundEnabled = true;
+    public boolean notifHudEnabled = true;
     public boolean notifSystemState = true;
     public boolean notifTargetChange = true;
     public boolean notifTargetTimeout = true;
@@ -62,6 +74,18 @@ public final class ConfigManager {
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
                 ConfigManager loaded = GSON.fromJson(reader, ConfigManager.class);
                 if (loaded != null) {
+                    if (loaded.activeProfile == null || loaded.activeProfile.isEmpty()) {
+                        loaded.activeProfile = "Mặc định";
+                    }
+                    if (loaded.hudScale <= 0f) {
+                        loaded.hudScale = 1.0f;
+                    }
+                    if (loaded.hudAlpha <= 0f) {
+                        loaded.hudAlpha = 0.85f;
+                    }
+                    if (loaded.notifDurationSeconds <= 0) {
+                        loaded.notifDurationSeconds = 4;
+                    }
                     instance = loaded;
                     return instance;
                 }
@@ -85,20 +109,24 @@ public final class ConfigManager {
     }
 
     public static boolean isHudVisible() {
-        return get().hudVisible;
+        ConfigManager cfg = get();
+        return cfg.hudVisible && cfg.hudEnabled;
     }
 
     public static void setHudVisible(boolean visible) {
         ConfigManager cfg = get();
         cfg.hudVisible = visible;
+        cfg.hudEnabled = visible;
         cfg.save();
     }
 
     public static boolean toggleHudVisible() {
         ConfigManager cfg = get();
-        cfg.hudVisible = !cfg.hudVisible;
+        boolean next = !isHudVisible();
+        cfg.hudVisible = next;
+        cfg.hudEnabled = next;
         cfg.save();
-        return cfg.hudVisible;
+        return next;
     }
 
     private static Path getConfigPath() {
