@@ -1,8 +1,7 @@
-package com.spicy.oreminer.gui;
+package com.spicy.oreminer.ui;
 
 import com.spicy.oreminer.config.ConfigManager;
 import com.spicy.oreminer.core.HudVisibilityManager;
-import com.spicy.oreminer.core.SafetyManager;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -28,9 +27,6 @@ public class SpicyMinerScreen extends Screen {
 
         this.toggleSystemButton = ButtonWidget.builder(getSystemButtonText(cfg.systemEnabled), button -> {
             cfg.systemEnabled = !cfg.systemEnabled;
-            if (cfg.systemEnabled) {
-                SafetyManager.resetEmergencyStop();
-            }
             cfg.save();
             button.setMessage(getSystemButtonText(cfg.systemEnabled));
         }).dimensions(centerX - btnWidth / 2, startY, btnWidth, btnHeight).build();
