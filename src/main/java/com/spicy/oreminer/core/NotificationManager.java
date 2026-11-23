@@ -4,66 +4,74 @@ import com.spicy.oreminer.config.ConfigManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.sound.SoundEvents;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 public final class NotificationManager {
-    public record Toast(String title, String detail, int color, long expireAtMs, String timestamp) {}
+    public static final class Entry {
+        public final String key;
+        public final String title;
+        public final String message;
+        public final int color;
+        public final long expireAtMs;
 
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final List<Toast> HISTORY = new ArrayList<>();
-    private static final List<Toast> ACTIVE_TOASTS = new ArrayList<>();
-    private static final Map<String, Long> COOLDOWNS = new HashMap<>();
+        public Entry(String key, String title, String message, int color, long expireAtMs) {
+            this.key = key;
+            this.title = title;
+            this.message = message;
+            this.color = color;
+            this.expireAtMs = expireAtMs;
+        }
+    }
+
+    private static final List<Entry> ACTIVE = new ArrayList<>();
 
     private NotificationManager() {}
 
-    public static synchronized void push(String key, String title, String detail, int color, boolean typeEnabled) {
+    public static void push(String key, String title, String message, int color, boolean typeEnabled) {
         ConfigManager cfg = ConfigManager.get();
-        if (!cfg.notificationsEnabled || !typeEnabled) return;
-
-        long now = System.currentTimeMillis();
-        Long last = COOLDOWNS.get(key);
-        if (last != null && (now - last) < 4000L) {
+        if (!cfg.notificationsEnabled || !typeEnabled) {
             return;
         }
-        COOLDOWNS.put(key, now);
 
-        String time = LocalTime.now().format(TIME_FMT);
-        long expire = now + Math.max(2, cfg.notifDurationSeconds) * 1000L;
-        Toast toast = new Toast(title, detail, color, expire, time);
+        long now = System.currentTimeMillis();
+        int durationSec = Math.max(2, cfg.notifDurationSeconds);
+        long expireAt = now + durationSec * 1000L;
 
-        HISTORY.add(0, toast);
-        if (HISTORY.size() > 100) HISTORY.remove(HISTORY.size() - 1);
-
-        if (cfg.notifHudEnabled) {
-            ACTIVE_TOASTS.add(0, toast);
-            if (ACTIVE_TOASTS.size() > 4) ACTIVE_TOASTS.remove(ACTIVE_TOASTS.size() - 1);
+        ACTIVE.removeIf(e -> e.key != null && e.key.equals(key));
+        ACTIVE.add(0, new Entry(key, title, message, color, expireAt));
+        if (ACTIVE.size() > 5) {
+            ACTIVE.subList(5, ACTIVE.size()).clear();
         }
 
         if (cfg.notifSoundEnabled) {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc != null && mc.player != null) {
-                mc.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 0.5f, 1.35f);
+                mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.35f, 1.15f);
             }
         }
     }
 
-    public static synchronized List<Toast> getActiveToasts() {
+    public static List<Entry> getActiveEntries() {
         long now = System.currentTimeMillis();
-        ACTIVE_TOASTS.removeIf(t -> t.expireAtMs <= now);
-        return new ArrayList<>(ACTIVE_TOASTS);
+        Iterator<Entry> it = ACTIVE.iterator();
+        while (it.hasNext()) {
+            Entry e = it.next();
+            if (e.expireAtMs <= now) {
+                it.remove();
+            }
+        }
+        return Collections.unmodifiableList(ACTIVE);
     }
 
-    public static synchronized List<Toast> getHistory() {
-        return new ArrayList<>(HISTORY);
+    public static boolean isHudNotificationEnabled() {
+        ConfigManager cfg = ConfigManager.get();
+        return cfg.notificationsEnabled && cfg.notifHudEnabled;
     }
 
-    public static synchronized void clearHistory() {
-        HISTORY.clear();
-        ACTIVE_TOASTS.clear();
+    public static void clear() {
+        ACTIVE.clear();
     }
 }
